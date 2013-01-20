@@ -204,104 +204,6 @@ function setBackground() {
     background = pixelData;
 }
 
-/**
- * Returns the number of neighbors pixels[row][col] has.  A neighbor can be in
- * any of 8 directions.  Assumes Pixels is an ImageData, which will be
- * represented by a 1d array that is WIDTH x HEIGHT
- */
-function findNumNeighbors(pixels, row, col) {
-  //TODO
-
-}
-
-/**
- * Performs one round of the Game of Life on gameOfLifePx
- */
-function doGameOfLifeRound() {
-  if (gameOfLifePx == null) return;
-  nextRound = makeNewPixels(false);
-  for (int row = 0; row < HEIGHT; row++) {
-    for (int col = 0; col < WIDTH; col++) {
-      numNeighbors = findNumNeighbors(gameOfLifePx, row, col);
-      // To live, there should be 2 or 3 neighbors
-      if (numNeighbors == 2 || numNeighbors == 3) {
-        // TODO: implement setPx
-        setPx(nextRound, row, col, 0);
-      } else {
-        setPx(nextRound, row, col, 255);
-      }
-    }
-  }
-  gameOfLifePx = nextRound;
-}
-
-/**
- * Returns true if pixels[pxNum] is black
- */
-function isBlack(pixels, pxNum) {
-  return 0 == pixels[pxNum] == pixels[pxNum + 1] == pixels[pxNum + 2];
-}
-
-/**
- * Sets pixels[pxNum] to rgba
- */
-function setColor(pixels, pxNum, r, g, b, a) {
-  pixels[pxNum] = r;
-  pixels[pxNum + 1] = g;
-  pixels[pxNum + 2] = b;
-  pixels[pxNum + 3] = a;
-}
-
-function makeNewPixels(initialize) {
-  newPx = shadowContext.createImageData(WIDTH, HEIGHT);
-  if (initialize) {
-    // white out everything for our blank canvas
-    for (var pxNum = 0; pxNum < newPx.data.length; pxNum += 4) {
-      setColor(newPx, pxNum, 255, 255, 255, 255);
-    }
-  }
-  return newPx;
-}
-
-/**
- *  Adds every pixel in the shadow to the game of life pixels.
- */ 
-function addShadowToLife(shadowPx) {
-  if (gameOfLifePx == null) {
-    gameOfLifePx = makeNewPixels(true);
-  } else {
-    // foreach pixel in shadowPx 
-    // pixels are stored as RGBA, so we need to go by 4 each time
-    for (var pxNum = 0; pxNum < gameOfLifePx.data.length; pxNum += 4) {
-      // if pixel is black:
-      if (isBlack(shadowPx, pxNum)) {
-        // set the corresponding pixel to black in gameOfLifePx
-        setColor(gameOfLifePx, pxNum, 0, 0, 0, 255);
-      }
-    }
-  }
-}
-
-/*
- * In a loop: gets the current frame of video, thresholds it to the background frames,
- * and outputs the difference as a shadow.
- */
-function renderShadow() {
-  if (!background) {
-    return;
-  }
-  
-  pixelData = getShadowData();
-  // Run one round of the Game of Life using last round's game of life pixels
-  doGameOfLifeRound();
-  // Make sure that all shadow pixels stay shadowy
-  addShadowToLife(pixelData);
-  // display the game of life modified image
-  shadowContext.putImageData(gameOfLifePx, 0, 0);
-  // pause for 250ms
-  setTimeout(renderShadow, 250);
-}
-
 /*
  * Returns an ImageData object that contains black pixels for the shadow
  * and white pixels for the background
@@ -355,4 +257,136 @@ function updateBackground(i, rCurrent, gCurrent, bCurrent, rBackground, gBackgro
  */
 function pixelDistance(r1, g1, b1, r2, g2, b2) {
     return Math.abs((r1+g1+b1)/3 - (r2+g2+b2)/3);
+}
+
+/**************************************************************
+ *  BEGIN GAME OF LIFE STUFF
+ *************************************************************/
+
+/**
+ * Returns the index into a pixels array of the symbolic row and column.
+ */
+function getPxNum(row, col) {
+  // index in by row and column
+  var pxNum = row * WIDTH + col;
+  // every pixel has rgba
+  var pxIndex = pxNum * 4;
+  return pxIndex;
+}
+
+/**
+ * Sets pixels[pxNum] to rgba
+ */
+function setColor(pixels, pxNum, r, g, b, a) {
+  pixels.data[pxNum] = r;
+  pixels.data[pxNum + 1] = g;
+  pixels.data[pxNum + 2] = b;
+  pixels.data[pxNum + 3] = a;
+}
+
+/**
+ * Returns true if pixels[pxNum] is black
+ */
+function isBlack(pixels, pxNum) {
+  return (0 == pixels.data[pxNum] == pixels.data[pxNum + 1] == 
+          pixels.data[pxNum + 2]);
+}
+
+/**
+ * Returns true if pixels[row][col] is within bounds and black.
+ */
+function isNeighborBlack(pixels, row, col) {
+  // don't let row or col be out of bounds
+  if (row < 0 || row > HEIGHT - 1 || col < 0 || col > WIDTH - 1) return false;
+  return isBlack(pixels, getPxNum(row, col));
+}
+
+/**
+ * Returns the number of neighbors pixels[row][col] has.  A neighbor can be in
+ * any of 8 directions.  Assumes Pixels is an ImageData, which will be
+ * represented by a 1d array that is WIDTH x HEIGHT
+ */
+function findNumNeighbors(pixels, row, col) {
+  var numNeighbors = 0;
+  for (var dRow = -1; dRow <= 1; dRow++) {
+    for (var dCol = -1; dCol <= 1; dCol++) {
+      // don't do anything if we're looking at the current row and col
+      if (dRow != 0 || dCol != 0) {
+        if (isNeighborBlack(pixels, row + dRow, col + dCol)) {
+          numNeighbors++;
+        }
+      }
+    }
+  }
+  return numNeighbors;
+}
+
+/**
+ * Performs one round of the Game of Life on gameOfLifePx
+ */
+function doGameOfLifeRound() {
+  if (gameOfLifePx == null) return;
+  nextRound = makeNewPixels(false);
+  for (var row = 0; row < HEIGHT; row++) {
+    for (var col = 0; col < WIDTH; col++) {
+      numNeighbors = findNumNeighbors(gameOfLifePx, row, col);
+      // To live, there should be 2 or 3 neighbors
+      if (numNeighbors == 2 || numNeighbors == 3) {
+        setColor(nextRound, getPxNum(row, col), 0, 0, 0, 255);
+      } else {
+        setColor(nextRound, getPxNum(row, col), 255, 255, 255, 255);
+      }
+    }
+  }
+  gameOfLifePx = nextRound;
+}
+
+function makeNewPixels(initialize) {
+  newPx = shadowContext.createImageData(WIDTH, HEIGHT);
+  if (initialize) {
+    // white out everything for our blank canvas
+    for (var pxNum = 0; pxNum < newPx.data.length; pxNum += 4) {
+      setColor(newPx, pxNum, 255, 255, 255, 255);
+    }
+  }
+  return newPx;
+}
+
+/**
+ *  Adds every pixel in the shadow to the game of life pixels.
+ */ 
+function addShadowToLife(shadowPx) {
+  if (gameOfLifePx == null) {
+    gameOfLifePx = makeNewPixels(true);
+  } else {
+    // foreach pixel in shadowPx 
+    // pixels are stored as RGBA, so we need to go by 4 each time
+    for (var pxNum = 0; pxNum < gameOfLifePx.data.length; pxNum += 4) {
+      // if pixel is black:
+      if (isBlack(shadowPx, pxNum)) {
+        // set the corresponding pixel to black in gameOfLifePx
+        setColor(gameOfLifePx, pxNum, 0, 0, 0, 255);
+      }
+    }
+  }
+}
+
+/*
+ * In a loop: gets the current frame of video, thresholds it to the background frames,
+ * and outputs the difference as a shadow.
+ */
+function renderShadow() {
+  if (!background) {
+    return;
+  }
+  
+  pixelData = getShadowData();
+  // Run one round of the Game of Life using last round's game of life pixels
+  doGameOfLifeRound();
+  // Make sure that all shadow pixels stay shadowy
+  addShadowToLife(pixelData);
+  // display the game of life modified image
+  shadowContext.putImageData(gameOfLifePx, 0, 0);
+  // shadowContext.putImageData(pixelData, 0, 0);
+  setTimeout(renderShadow, 0);
 }
