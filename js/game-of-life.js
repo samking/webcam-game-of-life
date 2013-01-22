@@ -23,16 +23,16 @@ SHOW_SHADOW = true;
 var INPUT = "webcam"; 
 // A difference of >= SHADOW_THRESHOLD across RGB space from the background
 // frame is marked as foreground
-var SHADOW_THRESHOLD = 10;
+var SHADOW_THRESHOLD = 40;
 // Between 0 and 1: how much memory we retain of previous frames.
 // In other words, how much we let the background adapt over time to more recent frames
 var BACKGROUND_ALPHA = 0.05;
 // We run a gaussian blur over the input image to reduce random noise 
 // in the background subtraction. Change this radius to trade off noise for precision 
-var STACK_BLUR_RADIUS = 10; 
+var STACK_BLUR_RADIUS = 2; 
 
-var WIDTH = 640;
-var HEIGHT = 480;
+var WIDTH = 320;
+var HEIGHT = 240;
 
 
 /*
@@ -331,7 +331,7 @@ function doGameOfLifeRound() {
     for (var col = 0; col < WIDTH; col++) {
       numNeighbors = findNumNeighbors(gameOfLifePx, row, col);
       // To live, there should be 2 or 3 neighbors
-      if (numNeighbors == 2 || numNeighbors == 3) {
+      if (numNeighbors == 3 || numNeighbors == 4) {
         setColor(nextRound, getPxNum(row, col), 0, 0, 0, 255);
       } else {
         setColor(nextRound, getPxNum(row, col), 255, 255, 255, 255);
